@@ -1,0 +1,20 @@
+{
+  "name": "nutribyte-backend",
+  "version": "1.0.0",
+  "description": "Backend of NutriByte with REE powerd by Gemini flash",
+  "license": "ISC",
+  "author": "Mayank",
+  "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "test": "node server.js"
+  },
+  "dependencies": {
+    "axios": "^1.10.0",
+    "cors": "^2.8.5",
+    "dot-env": "^0.0.1",
+    "dotenv": "^17.2.0",
+    "express": "^5.1.0",
+    "mongoose": "^8.16.4"
+  }
+}
