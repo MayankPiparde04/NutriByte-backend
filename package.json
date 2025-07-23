@@ -4,12 +4,14 @@
   "description": "Backend of NutriByte with REE powerd by Gemini flash",
   "license": "ISC",
   "author": "Mayank",
-  "type": "commonjs",
+  "type": "module",
   "main": "server.js",
   "scripts": {
     "test": "node server.js"
   },
   "dependencies": {
+    "@google/genai": "^1.10.0",
+    "@google/generative-ai": "^0.24.1",
     "axios": "^1.10.0",
     "cors": "^2.8.5",
     "dot-env": "^0.0.1",
