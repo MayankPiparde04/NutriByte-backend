@@ -8,7 +8,7 @@ export async function generateContent() {
   const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
   const result = await model.generateContent(
-    "Write a story about a magic backpack in 100 words."
+    "Write a story about a magic book in 100 words."
   );
   const response = await result.response;
   return response.text();

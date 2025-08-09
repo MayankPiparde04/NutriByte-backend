@@ -1,11 +1,18 @@
-const { default: mongoose } = require("mongoose");
-require('dotenv').config();
+// controllers/db/db.js
+import mongoose from "mongoose";
 
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-});
-mongoose.connection.on('connected', () => {
-  console.log('Connected to MongoDB');
-});
-require('./db/db.js'); 
+const connect = async () => {
+  try {
+    const uri = process.env.MONGO_URI;
+    if (!uri) throw new Error("MONGO_URI not defined");
+    await mongoose.connect(uri, {
+      dbName: process.env.MONGO_DBNAME ?? "nutribyte",
+    });
+    console.log("✅ MongoDB connected");
+  } catch (err) {
+    console.error("Mongo connect error:", err);
+    process.exit(1);
+  }
+};
+
+export default connect;
