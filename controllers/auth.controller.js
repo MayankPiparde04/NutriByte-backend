@@ -11,11 +11,37 @@ const REFRESH_COOKIE_NAME = "nb_refresh";
 export const registerController = async (req, res) => {
   try {
     const { fullname, email, password, phone } = req.body;
-    if (!fullname || !email || !password)
-      return res.status(400).json({ message: "Missing fields" });
+    
+    // Validate required fields
+    if (!fullname || !email || !password || !phone) {
+      return res.status(400).json({ 
+        message: "All fields are required",
+        required: ["fullname", "email", "password", "phone"]
+      });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: "Invalid email format" });
+    }
+
+    // Validate password strength
+    if (password.length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters long" });
+    }
+
+    // Validate phone number (basic validation)
+    if (phone.length < 10) {
+      return res.status(400).json({ message: "Phone number must be at least 10 digits" });
+    }
 
     const exists = await User.findOne({ email });
-    if (exists) return res.status(409).json({ message: "User exists" });
+    if (exists) return res.status(409).json({ message: "User with this email already exists" });
+
+    // Check if phone number already exists (optional uniqueness)
+    const phoneExists = await User.findOne({ phone });
+    if (phoneExists) return res.status(409).json({ message: "User with this phone number already exists" });
 
     const user = new User({ fullname, email, password, phone });
     await user.save();
@@ -23,8 +49,12 @@ export const registerController = async (req, res) => {
     const accessToken = generateAccessToken(user._id);
     const refreshToken = generateRefreshToken(user._id);
 
-    // store refresh token (in DB) - store token directly for simplicity; production: store hashed token
-    user.refreshTokens.push({ token: refreshToken, createdAt: new Date() });
+    // Store refresh token with expiration
+    user.refreshTokens.push({ 
+      token: refreshToken, 
+      createdAt: new Date(),
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+    });
     await user.save();
 
     res.cookie(REFRESH_COOKIE_NAME, refreshToken, {
@@ -34,15 +64,13 @@ export const registerController = async (req, res) => {
       maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days
     });
 
-    res
-      .status(201)
-      .json({
-        accessToken,
-        user: { id: user._id, fullname: user.fullname, email: user.email },
-      });
+    res.status(201).json({
+      accessToken,
+      user: user.getPublicProfile()
+    });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
+    console.error("Registration error:", err);
+    res.status(500).json({ message: "Server error during registration" });
   }
 };
 
@@ -50,17 +78,25 @@ export const loginController = async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password)
-      return res.status(400).json({ message: "Missing fields" });
+      return res.status(400).json({ message: "Email and password are required" });
 
     const user = await User.findOne({ email });
-    if (!user) return res.status(401).json({ message: "Invalid credentials" });
+    if (!user) return res.status(401).json({ message: "Invalid email or password" });
+    
     const ok = await user.comparePassword(password);
-    if (!ok) return res.status(401).json({ message: "Invalid credentials" });
+    if (!ok) return res.status(401).json({ message: "Invalid email or password" });
+
+    // Clean up expired tokens before creating new ones
+    await user.cleanupExpiredTokens();
 
     const accessToken = generateAccessToken(user._id);
     const refreshToken = generateRefreshToken(user._id);
 
-    user.refreshTokens.push({ token: refreshToken, createdAt: new Date() });
+    user.refreshTokens.push({ 
+      token: refreshToken, 
+      createdAt: new Date(),
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+    });
     await user.save();
 
     res.cookie(REFRESH_COOKIE_NAME, refreshToken, {
@@ -72,11 +108,11 @@ export const loginController = async (req, res) => {
 
     res.json({
       accessToken,
-      user: { id: user._id, fullname: user.fullname, email: user.email },
+      user: user.getPublicProfile()
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
+    console.error("Login error:", err);
+    res.status(500).json({ message: "Server error during login" });
   }
 };
 

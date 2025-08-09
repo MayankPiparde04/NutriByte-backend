@@ -5,10 +5,16 @@ export const createChat = async (req, res) => {
   try {
     const userId = req.user._id;
     const { roomId, title } = req.body;
+    
+    // Validate title
+    if (title && (typeof title !== 'string' || title.length > 100)) {
+      return res.status(400).json({ error: "Title must be a string with max 100 characters" });
+    }
+    
     const chat = new Chat({
       roomId: roomId ?? `room-${Date.now()}`,
       userId,
-      title,
+      title: title || "Untitled",
       messages: [],
     });
     await chat.save();
@@ -24,14 +30,27 @@ export const addMessage = async (req, res) => {
     const userId = req.user._id;
     const { chatId, senderId, text, imageUri, fromAI } = req.body;
 
+    // Validate message content
+    if (!text && !imageUri) {
+      return res.status(400).json({ error: "Message must contain either text or image" });
+    }
+    
+    if (text && typeof text !== 'string') {
+      return res.status(400).json({ error: "Text must be a string" });
+    }
+    
+    if (text && text.length > 5000) {
+      return res.status(400).json({ error: "Message text too long (max 5000 characters)" });
+    }
+
     // If no chatId provided, create one
     if (!chatId) {
       const roomId = `room-${Date.now()}`;
       const chat = new Chat({
         roomId,
         userId,
-        title: (text || "").split(" ")[0] || "Untitled",
-        messages: [{ senderId, text, imageUri, fromAI }],
+        title: (text || "").split(" ").slice(0, 5).join(" ") || "Untitled",
+        messages: [{ senderId, text, imageUri, fromAI: Boolean(fromAI) }],
         lastUpdated: Date.now(),
       });
       await chat.save();
@@ -41,7 +60,7 @@ export const addMessage = async (req, res) => {
     const chat = await Chat.findOne({ _id: chatId, userId });
     if (!chat) return res.status(404).json({ message: "Chat not found" });
 
-    chat.messages.push({ senderId, text, imageUri, fromAI });
+    chat.messages.push({ senderId, text, imageUri, fromAI: Boolean(fromAI) });
     chat.lastUpdated = Date.now();
     await chat.save();
     res.json(chat);

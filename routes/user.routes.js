@@ -5,11 +5,12 @@ import {
   postUser,
   updateUser,
 } from "../controllers/user.controller.js";
+import { protect } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
-router.get("/:id", getUser);
-router.post("/", postUser);
-router.put("/:id", updateUser);
+router.get("/:id", protect, getUser);
+router.post("/", protect, postUser);
+router.put("/:id", protect, updateUser);
 
 export default router;
