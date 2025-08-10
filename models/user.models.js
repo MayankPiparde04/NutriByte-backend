@@ -24,8 +24,7 @@ const userSchema = new mongoose.Schema({
   timestamps: true // Adds createdAt and updatedAt automatically
 });
 
-// Index for better query performance
-userSchema.index({ email: 1 });
+// Note: Index on email is automatically created due to unique: true
 
 // Hash password before saving
 userSchema.pre("save", async function (next) {

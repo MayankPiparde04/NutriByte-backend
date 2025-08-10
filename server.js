@@ -3,6 +3,7 @@ import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import os from "os";
 import connect from "./controllers/db/db.js";
 import authRoutes from "./routes/auth.routes.js";
 import userRoutes from "./routes/user.routes.js";
@@ -12,8 +13,28 @@ import { requestLogger, errorLogger } from "./middleware/logger.middleware.js";
 
 dotenv.config();
 
+// Function to get all network interface IPs
+function getNetworkIPs() {
+  const interfaces = os.networkInterfaces();
+  const ips = [];
+  
+  Object.keys(interfaces).forEach((interfaceName) => {
+    interfaces[interfaceName].forEach((iface) => {
+      // Skip internal and non-IPv4 addresses
+      if (!iface.internal && iface.family === 'IPv4') {
+        ips.push({
+          interface: interfaceName,
+          ip: iface.address
+        });
+      }
+    });
+  });
+  
+  return ips;
+}
+
 // Validate required environment variables
-const requiredEnvVars = ['MONGO_URI', 'JWT_SECRET', 'REFRESH_TOKEN_SECRET'];
+const requiredEnvVars = ['JWT_SECRET', 'REFRESH_TOKEN_SECRET']; // Removed MONGO_URI from required
 const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
 
 if (missingEnvVars.length > 0) {
@@ -22,7 +43,8 @@ if (missingEnvVars.length > 0) {
   process.exit(1);
 }
 
-await connect(); // connect to MongoDB
+// Connect to MongoDB (graceful failure)
+const dbConnected = await connect();
 
 const app = express();
 const PORT = process.env.PORT ?? 5000;
@@ -91,6 +113,39 @@ process.on('SIGINT', () => {
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 NutriByte API listening on port ${PORT}`);
-  console.log(`📊 Health check available at http://localhost:${PORT}/api/health`);
+  console.log('\n🚀 NutriByte API Server Started Successfully!');
+  console.log('='.repeat(60));
+  
+  // Database status
+  console.log(`💾 Database: ${dbConnected ? '✅ Connected' : '❌ Disconnected'}`);
+  
+  // Get network IPs
+  const networkIPs = getNetworkIPs();
+  
+  // Log localhost
+  console.log(`📍 Localhost: http://localhost:${PORT}`);
+  console.log(`🏥 Health Check: http://localhost:${PORT}/api/health`);
+  
+  // Log network IPs
+  if (networkIPs.length > 0) {
+    console.log('\n📶 Network Access:');
+    networkIPs.forEach(({ interface: interfaceName, ip }) => {
+      console.log(`   ${interfaceName}: http://${ip}:${PORT}`);
+      console.log(`   Health Check: http://${ip}:${PORT}/api/health`);
+    });
+    
+    console.log('\n📱 For Mobile Development:');
+    console.log(`   iOS Simulator: http://localhost:${PORT}/api`);
+    console.log(`   Android Emulator: http://10.0.2.2:${PORT}/api`);
+    if (networkIPs.length > 0) {
+      const primaryIP = networkIPs[0].ip;
+      console.log(`   Physical Device: http://${primaryIP}:${PORT}/api`);
+    }
+  }
+  
+  console.log('\n🌐 CORS Configuration:');
+  console.log(`   Allowed Origin: ${allowedOrigin || '*'}`);
+  
+  console.log('\n📊 API Documentation: ./API_DOCUMENTATION.md');
+  console.log('='.repeat(60));
 });
